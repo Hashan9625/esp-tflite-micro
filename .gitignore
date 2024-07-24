@@ -1,0 +1,11 @@
+build
+managed_components
+dependencies.lock
+*.old
+*.o
+*.s
+.DS_Store
+*.orig
+*.swp
+*.out
+*.lock
