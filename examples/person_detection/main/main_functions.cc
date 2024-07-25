@@ -18,7 +18,7 @@ limitations under the License.
 #include "detection_responder.h"
 #include "image_provider.h"
 #include "model_settings.h"
-#include "person_detect_model_data.h"
+#include "drowsiness_detect_model_data.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/micro_log.h"
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
@@ -51,15 +51,24 @@ constexpr int scratchBufSize = 40 * 1024;
 constexpr int scratchBufSize = 0;
 #endif
 // An area of memory to use for input, output, and intermediate arrays.
-constexpr int kTensorArenaSize = 81 * 1024 + scratchBufSize;
+constexpr int kTensorArenaSize = 384 * 1024 + scratchBufSize;
 static uint8_t *tensor_arena;//[kTensorArenaSize]; // Maybe we should move this to external
 }  // namespace
 
 // The name of this function is important for Arduino compatibility.
 void setup() {
+    size_t psram_size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    if (psram_size > 0)
+    {
+        ESP_LOGI("PSRAM", "PSRAM is available: %d bytes", psram_size);
+    }
+    else
+    {
+        ESP_LOGE("PSRAM", "No PSRAM available");
+    }
   // Map the model into a usable data structure. This doesn't involve any
   // copying or parsing, it's a very lightweight operation.
-  model = tflite::GetModel(g_person_detect_model_data);
+  model = tflite::GetModel(g_drowsiness_detect_model_data);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
     MicroPrintf("Model provided is schema version %d not equal to supported "
                 "version %d.", model->version(), TFLITE_SCHEMA_VERSION);
@@ -67,7 +76,7 @@ void setup() {
   }
 
   if (tensor_arena == NULL) {
-    tensor_arena = (uint8_t *) heap_caps_malloc(kTensorArenaSize, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    tensor_arena = (uint8_t *) heap_caps_malloc(kTensorArenaSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   }
   if (tensor_arena == NULL) {
     printf("Couldn't allocate memory of %d bytes\n", kTensorArenaSize);
@@ -83,10 +92,10 @@ void setup() {
   // tflite::AllOpsResolver resolver;
   // NOLINTNEXTLINE(runtime-global-variables)
   static tflite::MicroMutableOpResolver<5> micro_op_resolver;
-  micro_op_resolver.AddAveragePool2D();
   micro_op_resolver.AddConv2D();
-  micro_op_resolver.AddDepthwiseConv2D();
+  micro_op_resolver.AddMaxPool2D();
   micro_op_resolver.AddReshape();
+  micro_op_resolver.AddFullyConnected();
   micro_op_resolver.AddSoftmax();
 
   // Build an interpreter to run the model with.
@@ -131,8 +140,8 @@ void loop() {
   TfLiteTensor* output = interpreter->output(0);
 
   // Process the inference results.
-  int8_t person_score = output->data.uint8[kPersonIndex];
-  int8_t no_person_score = output->data.uint8[kNotAPersonIndex];
+  int8_t person_score = output->data.uint8[kDrowsyIndex];
+  int8_t no_person_score = output->data.uint8[kNotDrowsyIndex];
 
   float person_score_f =
       (person_score - output->params.zero_point) * output->params.scale;
@@ -196,8 +205,8 @@ void run_inference(void *ptr) {
   TfLiteTensor* output = interpreter->output(0);
 
   // Process the inference results.
-  int8_t person_score = output->data.uint8[kPersonIndex];
-  int8_t no_person_score = output->data.uint8[kNotAPersonIndex];
+  int8_t person_score = output->data.uint8[kDrowsyIndex];
+  int8_t no_person_score = output->data.uint8[kNotDrowsyIndex];
 
   float person_score_f =
       (person_score - output->params.zero_point) * output->params.scale;
