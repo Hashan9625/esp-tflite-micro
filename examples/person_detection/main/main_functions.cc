@@ -1,20 +1,4 @@
-/* Copyright 2019 The TensorFlow Authors. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
-
 #include "main_functions.h"
-
 #include "detection_responder.h"
 #include "image_provider.h"
 #include "model_settings.h"
@@ -33,52 +17,58 @@ limitations under the License.
 #include "esp_main.h"
 
 // Globals, used for compatibility with Arduino-style sketches.
-namespace {
-const tflite::Model* model = nullptr;
-tflite::MicroInterpreter* interpreter = nullptr;
-TfLiteTensor* input = nullptr;
+namespace
+{
+  const tflite::Model *model = nullptr;
+  tflite::MicroInterpreter *interpreter = nullptr;
+  TfLiteTensor *input = nullptr;
 
-// In order to use optimized tensorflow lite kernels, a signed int8_t quantized
-// model is preferred over the legacy unsigned model format. This means that
-// throughout this project, input images must be converted from unisgned to
-// signed format. The easiest and quickest way to convert from unsigned to
-// signed 8-bit integers is to subtract 128 from the unsigned value to get a
-// signed value.
+  // In order to use optimized tensorflow lite kernels, a signed int8_t quantized
+  // model is preferred over the legacy unsigned model format. This means that
+  // throughout this project, input images must be converted from unisgned to
+  // signed format. The easiest and quickest way to convert from unsigned to
+  // signed 8-bit integers is to subtract 128 from the unsigned value to get a
+  // signed value.
 
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-constexpr int scratchBufSize = 40 * 1024;
+  constexpr int scratchBufSize = 40 * 1024;
 #else
-constexpr int scratchBufSize = 0;
+  constexpr int scratchBufSize = 0;
 #endif
-// An area of memory to use for input, output, and intermediate arrays.
-constexpr int kTensorArenaSize = 384 * 1024 + scratchBufSize;
-static uint8_t *tensor_arena;//[kTensorArenaSize]; // Maybe we should move this to external
-}  // namespace
+  // An area of memory to use for input, output, and intermediate arrays.
+  constexpr int kTensorArenaSize = 384 * 1024 + scratchBufSize;
+  static uint8_t *tensor_arena; //[kTensorArenaSize]; // Maybe we should move this to external
+} // namespace
 
 // The name of this function is important for Arduino compatibility.
-void setup() {
-    size_t psram_size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-    if (psram_size > 0)
-    {
-        ESP_LOGI("PSRAM", "PSRAM is available: %d bytes", psram_size);
-    }
-    else
-    {
-        ESP_LOGE("PSRAM", "No PSRAM available");
-    }
+void setup()
+{
+  size_t psram_size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+  if (psram_size > 0)
+  {
+    ESP_LOGI("PSRAM", "PSRAM is available: %d bytes", psram_size);
+  }
+  else
+  {
+    ESP_LOGE("PSRAM", "No PSRAM available");
+  }
   // Map the model into a usable data structure. This doesn't involve any
   // copying or parsing, it's a very lightweight operation.
-  model = tflite::GetModel(g_drowsiness_detect_model_data);
-  if (model->version() != TFLITE_SCHEMA_VERSION) {
+  model = tflite::GetModel(drowsiness_detect_model_data);
+  if (model->version() != TFLITE_SCHEMA_VERSION)
+  {
     MicroPrintf("Model provided is schema version %d not equal to supported "
-                "version %d.", model->version(), TFLITE_SCHEMA_VERSION);
+                "version %d.",
+                model->version(), TFLITE_SCHEMA_VERSION);
     return;
   }
 
-  if (tensor_arena == NULL) {
-    tensor_arena = (uint8_t *) heap_caps_malloc(kTensorArenaSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (tensor_arena == NULL)
+  {
+    tensor_arena = (uint8_t *)heap_caps_malloc(kTensorArenaSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   }
-  if (tensor_arena == NULL) {
+  if (tensor_arena == NULL)
+  {
     printf("Couldn't allocate memory of %d bytes\n", kTensorArenaSize);
     return;
   }
@@ -106,7 +96,8 @@ void setup() {
 
   // Allocate memory from the tensor_arena for the model's tensors.
   TfLiteStatus allocate_status = interpreter->AllocateTensors();
-  if (allocate_status != kTfLiteOk) {
+  if (allocate_status != kTfLiteOk)
+  {
     MicroPrintf("AllocateTensors() failed");
     return;
   }
@@ -114,76 +105,104 @@ void setup() {
   // Get information about the memory area to use for the model's input.
   input = interpreter->input(0);
 
+  TfLiteIntArray *dims = input->dims;
+  MicroPrintf("Input Tensor Shape: [%d, %d, %d, %d]",
+              dims->data[0],  // Batch size
+              dims->data[1],  // Height
+              dims->data[2],  // Width
+              dims->data[3]); // Channels
+
 #ifndef CLI_ONLY_INFERENCE
   // Initialize Camera
   TfLiteStatus init_status = InitCamera();
-  if (init_status != kTfLiteOk) {
+  if (init_status != kTfLiteOk)
+  {
     MicroPrintf("InitCamera failed\n");
     return;
   }
 #endif
+
+  MicroPrintf("Number of dimension %d", input->dims->size);
+  MicroPrintf("Dim 1 size %d", input->dims->data[0]);
+  MicroPrintf("Dim 2 size %d", input->dims->data[1]);
+  MicroPrintf("Input type %d", input->type);
 }
 
 #ifndef CLI_ONLY_INFERENCE
 // The name of this function is important for Arduino compatibility.
-void loop() {
+void loop()
+{
   // Get image from provider.
-  if (kTfLiteOk != GetImage(kNumCols, kNumRows, kNumChannels, input->data.int8)) {
+  if (kTfLiteOk != GetImage(kNumCols, kNumRows, kNumChannels, input->data.f))
+  {
     MicroPrintf("Image capture failed.");
   }
 
   // Run the model on this input and make sure it succeeds.
-  if (kTfLiteOk != interpreter->Invoke()) {
+  if (kTfLiteOk != interpreter->Invoke())
+  {
     MicroPrintf("Invoke failed.");
   }
 
-  TfLiteTensor* output = interpreter->output(0);
+  TfLiteTensor *output = interpreter->output(0);
 
   // Process the inference results.
-  int8_t person_score = output->data.uint8[kDrowsyIndex];
-  int8_t no_person_score = output->data.uint8[kNotDrowsyIndex];
+  // int8_t person_score = output->data.uint8[kDrowsyIndex];
+  // int8_t no_person_score = output->data.uint8[kNotDrowsyIndex];
 
-  float person_score_f =
-      (person_score - output->params.zero_point) * output->params.scale;
-  float no_person_score_f =
-      (no_person_score - output->params.zero_point) * output->params.scale;
+  MicroPrintf("Size: %i", sizeof(output->data.f));
+  MicroPrintf("1: %f", output->data.f[0]);
+  MicroPrintf("2: %f", output->data.f[1]);
+  MicroPrintf("3: %f", output->data.f[2]);
+  MicroPrintf("4: %f", output->data.f[3]);
+
+  // float person_score_f =
+  //     (person_score - output->params.zero_point) * output->params.scale;
+  // float no_person_score_f =
+  //     (no_person_score - output->params.zero_point) * output->params.scale;
+
+  // MicroPrintf("Drowsy score:%i, no Drowsy score %i",
+  //             person_score, no_person_score);
 
   // Respond to detection
-  RespondToDetection(person_score_f, no_person_score_f);
-  vTaskDelay(1); // to avoid watchdog trigger
+  // RespondToDetection(person_score_f, no_person_score_f);
+  vTaskDelay(1000 / portTICK_PERIOD_MS); // to avoid watchdog trigger
 }
 #endif
 
 #if defined(COLLECT_CPU_STATS)
-  long long total_time = 0;
-  long long start_time = 0;
-  extern long long softmax_total_time;
-  extern long long dc_total_time;
-  extern long long conv_total_time;
-  extern long long fc_total_time;
-  extern long long pooling_total_time;
-  extern long long add_total_time;
-  extern long long mul_total_time;
+long long total_time = 0;
+long long start_time = 0;
+extern long long softmax_total_time;
+extern long long dc_total_time;
+extern long long conv_total_time;
+extern long long fc_total_time;
+extern long long pooling_total_time;
+extern long long add_total_time;
+extern long long mul_total_time;
 #endif
 
-void run_inference(void *ptr) {
+void run_inference(void *ptr)
+{
   /* Convert from uint8 picture data to int8 */
-  for (int i = 0; i < kNumCols * kNumRows; i++) {
-    input->data.int8[i] = ((uint8_t *) ptr)[i] ^ 0x80;
+  for (int i = 0; i < kNumCols * kNumRows; i++)
+  {
+    input->data.int8[i] = ((uint8_t *)ptr)[i] ^ 0x80;
   }
 
 #if defined(COLLECT_CPU_STATS)
   long long start_time = esp_timer_get_time();
 #endif
   // Run the model on this input and make sure it succeeds.
-  if (kTfLiteOk != interpreter->Invoke()) {
+  if (kTfLiteOk != interpreter->Invoke())
+  {
     MicroPrintf("Invoke failed.");
   }
 
 #if defined(COLLECT_CPU_STATS)
   long long total_time = (esp_timer_get_time() - start_time);
   printf("Total time = %lld\n", total_time / 1000);
-  //printf("Softmax time = %lld\n", softmax_total_time / 1000);
+  // printf("Softmax time = %lld\n", softmax_total_time / 1000);
   printf("FC time = %lld\n", fc_total_time / 1000);
   printf("DC time = %lld\n", dc_total_time / 1000);
   printf("conv time = %lld\n", conv_total_time / 1000);
@@ -193,7 +212,7 @@ void run_inference(void *ptr) {
 
   /* Reset times */
   total_time = 0;
-  //softmax_total_time = 0;
+  // softmax_total_time = 0;
   dc_total_time = 0;
   conv_total_time = 0;
   fc_total_time = 0;
@@ -202,7 +221,7 @@ void run_inference(void *ptr) {
   mul_total_time = 0;
 #endif
 
-  TfLiteTensor* output = interpreter->output(0);
+  TfLiteTensor *output = interpreter->output(0);
 
   // Process the inference results.
   int8_t person_score = output->data.uint8[kDrowsyIndex];

@@ -30,24 +30,27 @@ limitations under the License.
 #include "image_provider.h"
 #include "esp_main.h"
 
-static const char* TAG = "app_camera";
+static const char *TAG = "app_camera";
 
 static uint16_t *display_buf; // buffer to hold data to be sent to display
 
 // Get the camera module ready
-TfLiteStatus InitCamera() {
+TfLiteStatus InitCamera()
+{
 #if CLI_ONLY_INFERENCE
   ESP_LOGI(TAG, "CLI_ONLY_INFERENCE enabled, skipping camera init");
   return kTfLiteOk;
 #endif
 // if display support is present, initialise display buf
 #if DISPLAY_SUPPORT
-  if (display_buf == NULL) {
+  if (display_buf == NULL)
+  {
     // Size of display_buf:
     // Frame 96x96 from camera is extrapolated to 192x192. RGB565 pixel format -> 2 bytes per pixel
-    display_buf = (uint16_t *) heap_caps_malloc(96 * 2 * 96 * 2 * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    display_buf = (uint16_t *)heap_caps_malloc(96 * 2 * 96 * 2 * sizeof(uint16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   }
-  if (display_buf == NULL) {
+  if (display_buf == NULL)
+  {
     ESP_LOGE(TAG, "Couldn't allocate display buffer");
     return kTfLiteError;
   }
@@ -55,7 +58,8 @@ TfLiteStatus InitCamera() {
 
 #if ESP_CAMERA_SUPPORTED
   int ret = app_camera_init();
-  if (ret != 0) {
+  if (ret != 0)
+  {
     MicroPrintf("Camera init failed\n");
     return kTfLiteError;
   }
@@ -68,56 +72,36 @@ TfLiteStatus InitCamera() {
 
 void *image_provider_get_display_buf()
 {
-  return (void *) display_buf;
+  return (void *)display_buf;
 }
 
 // Get an image from the camera module
-TfLiteStatus GetImage(int image_width, int image_height, int channels, int8_t* image_data) {
+TfLiteStatus GetImage(int image_width, int image_height, int channels, float *image_data)
+{
 #if ESP_CAMERA_SUPPORTED
-  camera_fb_t* fb = esp_camera_fb_get();
-  if (!fb) {
+  camera_fb_t *fb = esp_camera_fb_get();
+  if (!fb)
+  {
     ESP_LOGE(TAG, "Camera capture failed");
     return kTfLiteError;
   }
 
-#if DISPLAY_SUPPORT
-  // In case if display support is enabled, we initialise camera in rgb mode
-  // Hence, we need to convert this data to grayscale to send it to tf model
-  // For display we extra-polate the data to 192X192
-  for (int i = 0; i < kNumRows; i++) {
-    for (int j = 0; j < kNumCols; j++) {
-      uint16_t pixel = ((uint16_t *) (fb->buf))[i * kNumCols + j];
+  MicroPrintf("Image Captured width = %i\n", sizeof(fb->width));
+  MicroPrintf("Image Captured hight = %i\n", sizeof(fb->height));
 
-      // for inference
-      uint8_t hb = pixel & 0xFF;
-      uint8_t lb = pixel >> 8;
-      uint8_t r = (lb & 0x1F) << 3;
-      uint8_t g = ((hb & 0x07) << 5) | ((lb & 0xE0) >> 3);
-      uint8_t b = (hb & 0xF8);
+  MicroPrintf("Image image_width = %i\n", image_width);
+  MicroPrintf("Image image_height = %i\n", image_height);
 
-      /**
-       * Gamma corected rgb to greyscale formula: Y = 0.299R + 0.587G + 0.114B
-       * for effiency we use some tricks on this + quantize to [-128, 127]
-       */
-      int8_t grey_pixel = ((305 * r + 600 * g + 119 * b) >> 10) - 128;
-
-      image_data[i * kNumCols + j] = grey_pixel;
-
-      // to display
-      display_buf[2 * i * kNumCols * 2 + 2 * j] = pixel;
-      display_buf[2 * i * kNumCols * 2 + 2 * j + 1] = pixel;
-      display_buf[(2 * i + 1) * kNumCols * 2 + 2 * j] = pixel;
-      display_buf[(2 * i + 1) * kNumCols * 2 + 2 * j + 1] = pixel;
-    }
-  }
-#else // DISPLAY_SUPPORT
-  MicroPrintf("Image Captured\n");
   // We have initialised camera to grayscale
   // Just quantize to int8_t
-  for (int i = 0; i < image_width * image_height; i++) {
-    image_data[i] = ((uint8_t *) fb->buf)[i] ^ 0x80;
+
+  MicroPrintf("\n\n Start Image");
+  for (int i = 0; i < image_width * image_height; i++)
+  {
+    image_data[i] = ((float) fb->buf[i]) / 255;
+  //  MicroPrintf("pixel %i = %f\n",i, image_data[i]);
   }
-#endif // DISPLAY_SUPPORT
+  MicroPrintf(" End Image\n\n");
 
   esp_camera_fb_return(fb);
   /* here the esp camera can give you grayscale image directly */
