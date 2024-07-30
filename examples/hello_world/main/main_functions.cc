@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/system_setup.h"
@@ -23,33 +22,47 @@ limitations under the License.
 #include "model.h"
 #include "constants.h"
 #include "output_handler.h"
+#include "sine_model.h"
 
 // Globals, used for compatibility with Arduino-style sketches.
-namespace {
-const tflite::Model* model = nullptr;
-tflite::MicroInterpreter* interpreter = nullptr;
-TfLiteTensor* input = nullptr;
-TfLiteTensor* output = nullptr;
-int inference_count = 0;
+namespace
+{
+ // tflite::ErrorReporter *error_reporter = nullptr;
+  const tflite::Model *model = nullptr;
+  tflite::MicroInterpreter *interpreter = nullptr;
+  TfLiteTensor *input = nullptr;
+  TfLiteTensor *output = nullptr;
+  int inference_count = 0;
 
-constexpr int kTensorArenaSize = 2000;
-uint8_t tensor_arena[kTensorArenaSize];
-}  // namespace
+  // Create an area of memory to used for input, output and other Tensorflow arrays.
+  constexpr int kTensorArenaSize = 2000;
+  uint8_t tensor_arena[kTensorArenaSize];
+} // namespace
 
 // The name of this function is important for Arduino compatibility.
-void setup() {
+void setup()
+{
+  // static tflite::ErrorReporter *micro_error_reporter;
+  // error_reporter = micro_error_reporter;
+
+  // static tflite::MicroErrorReporter micro_error_reporter; // in video
+  // error_reporter = &micro_error_reporter;
+
   // Map the model into a usable data structure. This doesn't involve any
   // copying or parsing, it's a very lightweight operation.
-  model = tflite::GetModel(g_model);
-  if (model->version() != TFLITE_SCHEMA_VERSION) {
+  model = tflite::GetModel(sine_model);
+  if (model->version() != TFLITE_SCHEMA_VERSION)
+  {
     MicroPrintf("Model provided is schema version %d not equal to supported "
-                "version %d.", model->version(), TFLITE_SCHEMA_VERSION);
+                "version %d.",
+                model->version(), TFLITE_SCHEMA_VERSION);
     return;
   }
 
   // Pull in only the operation implementations we need.
   static tflite::MicroMutableOpResolver<1> resolver;
-  if (resolver.AddFullyConnected() != kTfLiteOk) {
+  if (resolver.AddFullyConnected() != kTfLiteOk)
+  {
     return;
   }
 
@@ -60,7 +73,8 @@ void setup() {
 
   // Allocate memory from the tensor_arena for the model's tensors.
   TfLiteStatus allocate_status = interpreter->AllocateTensors();
-  if (allocate_status != kTfLiteOk) {
+  if (allocate_status != kTfLiteOk)
+  {
     MicroPrintf("AllocateTensors() failed");
     return;
   }
@@ -71,42 +85,55 @@ void setup() {
 
   // Keep track of how many inferences we have performed.
   inference_count = 0;
+
+  MicroPrintf("Number of dimension %d", input->dims->size);
+  MicroPrintf("Dim 1 size %d", input->dims->data[0]);
+  MicroPrintf("Dim 2 size %d", input->dims->data[1]);
+  MicroPrintf("Input type %d", input->type);
 }
+float x_val = 1.2;
 
 // The name of this function is important for Arduino compatibility.
-void loop() {
+void loop()
+{
   // Calculate an x value to feed into the model. We compare the current
   // inference_count to the number of inferences per cycle to determine
   // our position within the range of possible x values the model was
   // trained on, and use this to calculate a value.
-  float position = static_cast<float>(inference_count) /
-                   static_cast<float>(kInferencesPerCycle);
-  float x = position * kXrange;
+  // float position = static_cast<float>(inference_count) /
+  //                  static_cast<float>(kInferencesPerCycle);
+  // float x = position * kXrange;
 
-  // Quantize the input from floating-point to integer
-  int8_t x_quantized = x / input->params.scale + input->params.zero_point;
-  // Place the quantized input in the model's input tensor
-  input->data.int8[0] = x_quantized;
+  // // Quantize the input from floating-point to integer
+  // int8_t x_quantized = x / input->params.scale + input->params.zero_point;
+  // // Place the quantized input in the model's input tensor
+
+  input->data.f[0] = x_val;
 
   // Run inference, and report any error
   TfLiteStatus invoke_status = interpreter->Invoke();
-  if (invoke_status != kTfLiteOk) {
+  if (invoke_status != kTfLiteOk)
+  {
     MicroPrintf("Invoke failed on x: %f\n",
-                         static_cast<double>(x));
+                static_cast<double>(x_val));
     return;
   }
 
   // Obtain the quantized output from model's output tensor
-  int8_t y_quantized = output->data.int8[0];
-  // Dequantize the output from integer to floating-point
-  float y = (y_quantized - output->params.zero_point) * output->params.scale;
+ // int8_t y_quantized = output->data.int8[0];
+ float y_val = output->data.f[0];
+  // // Dequantize the output from integer to floating-point
+  // float y = (y_quantized - output->params.zero_point) * output->params.scale;
 
   // Output the results. A custom HandleOutput function can be implemented
   // for each supported hardware target.
-  HandleOutput(x, y);
+  //HandleOutput(x, y);
+   MicroPrintf("x:%f, y_val: %f\n",x_val , y_val);
 
   // Increment the inference_counter, and reset it if we have reached
   // the total number per cycle
-  inference_count += 1;
-  if (inference_count >= kInferencesPerCycle) inference_count = 0;
+  // inference_count += 1;
+  // if (inference_count >= kInferencesPerCycle)
+  //   inference_count = 0;
+  x_val = x_val+0.1;
 }
