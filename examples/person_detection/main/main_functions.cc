@@ -15,6 +15,9 @@
 #include <esp_timer.h>
 #include <esp_log.h>
 #include "esp_main.h"
+#include "driver/gpio.h"
+
+#define LED_BUILTIN GPIO_NUM_2
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace
@@ -43,6 +46,8 @@ namespace
 // The name of this function is important for Arduino compatibility.
 void setup()
 {
+  gpio_set_direction(LED_BUILTIN, GPIO_MODE_OUTPUT);
+
   size_t psram_size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
   if (psram_size > 0)
   {
@@ -150,20 +155,27 @@ void loop()
   // int8_t person_score = output->data.uint8[kDrowsyIndex];
   // int8_t no_person_score = output->data.uint8[kNotDrowsyIndex];
 
-  MicroPrintf("Size: %i", sizeof(output->data.f));
-  MicroPrintf("1: %f", output->data.f[0]);
-  MicroPrintf("2: %f", output->data.f[1]);
-  MicroPrintf("3: %f", output->data.f[2]);
-  MicroPrintf("4: %f", output->data.f[3]);
+  // MicroPrintf("Size: %i", sizeof(output->data.f));
+  // MicroPrintf("1: %f", output->data.f[0]);
+  // MicroPrintf("2: %f", output->data.f[1]);
+
+  float noDrowsy = output->data.f[0];
+  float drowsy = output->data.f[1];
 
   // float person_score_f =
   //     (person_score - output->params.zero_point) * output->params.scale;
   // float no_person_score_f =
   //     (no_person_score - output->params.zero_point) * output->params.scale;
 
-  // MicroPrintf("Drowsy score:%i, no Drowsy score %i",
-  //             person_score, no_person_score);
-
+  MicroPrintf("Non Drowsy:%f, Drowsy:%f", noDrowsy, drowsy);
+  if (drowsy > 0.4)
+  {
+    gpio_set_level(LED_BUILTIN, 1); // Turn the LED on
+  }
+  else
+  {
+    gpio_set_level(LED_BUILTIN, 0); // Turn the LED on
+  }
   // Respond to detection
   // RespondToDetection(person_score_f, no_person_score_f);
   vTaskDelay(1000 / portTICK_PERIOD_MS); // to avoid watchdog trigger

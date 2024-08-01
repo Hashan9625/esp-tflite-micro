@@ -86,22 +86,14 @@ TfLiteStatus GetImage(int image_width, int image_height, int channels, float *im
     return kTfLiteError;
   }
 
-  MicroPrintf("Image Captured width = %i\n", sizeof(fb->width));
-  MicroPrintf("Image Captured hight = %i\n", sizeof(fb->height));
-
-  MicroPrintf("Image image_width = %i\n", image_width);
-  MicroPrintf("Image image_height = %i\n", image_height);
-
   // We have initialised camera to grayscale
   // Just quantize to int8_t
 
-  MicroPrintf("\n\n Start Image");
   for (int i = 0; i < image_width * image_height; i++)
   {
     image_data[i] = ((float) fb->buf[i]) / 255;
   //  MicroPrintf("pixel %i = %f\n",i, image_data[i]);
   }
-  MicroPrintf(" End Image\n\n");
 
   esp_camera_fb_return(fb);
   /* here the esp camera can give you grayscale image directly */
