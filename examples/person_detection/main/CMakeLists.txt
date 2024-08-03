@@ -1,8 +1,3 @@
-
-#
-# Main component of TF Micro project 'person_detection'.
-#
-
 idf_component_register(
     SRCS
         "detection_responder.cc"
