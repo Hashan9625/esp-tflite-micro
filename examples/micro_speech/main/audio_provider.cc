@@ -35,6 +35,11 @@ limitations under the License.
 
 using namespace std;
 
+// Connection to INMP441
+#define I2S_WS 25
+#define I2S_SD 33
+#define I2S_SCK 32
+
 // for c2 and c3, I2S support was added from IDF v4.4 onwards
 #define NO_I2S_SUPPORT CONFIG_IDF_TARGET_ESP32C2 || \
                           (CONFIG_IDF_TARGET_ESP32C3 \
@@ -101,10 +106,10 @@ static void i2s_init(void) {
   i2s_config.bits_per_sample = (i2s_bits_per_sample_t) 32;
 #else
   i2s_pin_config_t pin_config = {
-      .bck_io_num = 26,    // IIS_SCLK
-      .ws_io_num = 32,     // IIS_LCLK
+      .bck_io_num = I2S_SCK,    // IIS_SCLK
+      .ws_io_num = I2S_WS,     // IIS_LCLK
       .data_out_num = -1,  // IIS_DSIN
-      .data_in_num = 33,   // IIS_DOUT
+      .data_in_num = I2S_SD,   // IIS_DOUT
   };
 #endif
 
