@@ -142,6 +142,7 @@ void loop() {
     model_input_buffer[i] = feature_buffer[i];
   }
 
+
   // Run the model on the spectrogram input and make sure it succeeds.
   TfLiteStatus invoke_status = interpreter->Invoke();
   if (invoke_status != kTfLiteOk) {

@@ -92,14 +92,15 @@ TfLiteStatus FeatureProvider::PopulateFeatureData(
   // +-----------+   --        +-----------+
   // | data@80ms | --          |  <empty>  |
   // +-----------+             +-----------+
-  if (slices_to_keep > 0) {
-    for (int dest_slice = 0; dest_slice < slices_to_keep; ++dest_slice) {
-      int8_t* dest_slice_data =
-          feature_data_ + (dest_slice * kFeatureSize);
+  if (slices_to_keep > 0)
+  {
+    for (int dest_slice = 0; dest_slice < slices_to_keep; ++dest_slice)
+    {
+      int8_t *dest_slice_data =  feature_data_ + (dest_slice * kFeatureSize);
       const int src_slice = dest_slice + slices_to_drop;
-      const int8_t* src_slice_data =
-          feature_data_ + (src_slice * kFeatureSize);
-      for (int i = 0; i < kFeatureSize; ++i) {
+      const int8_t *src_slice_data = feature_data_ + (src_slice * kFeatureSize);
+      for (int i = 0; i < kFeatureSize; ++i)
+      {
         dest_slice_data[i] = src_slice_data[i];
       }
     }
