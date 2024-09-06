@@ -31,6 +31,8 @@ limitations under the License.
 #include "esp_wifi.h"
 #include "esp_event.h"
 
+#include "micro_model_settings.h"
+
 // Wi-Fi credentials
 #define WIFI_SSID "Room"
 #define WIFI_PASS "AspireE15"
@@ -50,7 +52,7 @@ esp_err_t file_get_handler(httpd_req_t *req)
 
   // Write the PGM header
   char header[32];
-  int header_len = snprintf(header, sizeof(header), "P5\n%d %d\n255\n", 96, 96);
+  int header_len = snprintf(header, sizeof(header), "P5\n%d %d\n255\n", kFeatureSize , kFeatureCount);
   httpd_resp_send_chunk(req, header, header_len);
 
   // Read and send the file content in chunks

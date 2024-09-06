@@ -142,6 +142,19 @@ void loop() {
     model_input_buffer[i] = feature_buffer[i];
   }
 
+  FILE *file = fopen("/storage/dv.pgm", "wb");
+  if (file)
+  {
+    // Write the PGM header
+    fprintf(file, "P5\n%d %d\n255\n", kFeatureSize, kFeatureCount);
+    fwrite(model_input_buffer, 1, kFeatureElementCount, file);
+    fclose(file);
+    printf("Image saved to /storage/dv.pgm");
+  }
+  else
+  {
+    printf( "Failed to open file for writing");
+  }
 
   // Run the model on the spectrogram input and make sure it succeeds.
   TfLiteStatus invoke_status = interpreter->Invoke();
