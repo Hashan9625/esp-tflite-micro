@@ -71,7 +71,7 @@ int16_t g_history_buffer[history_samples_to_keep];
 #if !NO_I2S_SUPPORT
 uint8_t g_i2s_read_buffer[i2s_bytes_to_read] = {};
 #if CONFIG_IDF_TARGET_ESP32
-i2s_port_t i2s_port = I2S_NUM_1; // for esp32-eye
+i2s_port_t i2s_port = I2S_NUM_0; // for esp32-eye
 #else
 i2s_port_t i2s_port = I2S_NUM_0; // for esp32-s3-eye
 #endif
