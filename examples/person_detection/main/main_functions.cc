@@ -18,6 +18,7 @@
 #include "driver/gpio.h"
 
 #define LED_BUILTIN GPIO_NUM_2
+//#define PIN_BUZZER GPIO_NUM_27
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace
@@ -47,6 +48,7 @@ namespace
 void setup()
 {
   gpio_set_direction(LED_BUILTIN, GPIO_MODE_OUTPUT);
+  //gpio_set_direction(PIN_BUZZER, GPIO_MODE_OUTPUT);
 
   size_t psram_size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
   if (psram_size > 0)
