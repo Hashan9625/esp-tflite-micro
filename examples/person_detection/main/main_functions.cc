@@ -18,7 +18,7 @@
 #include "driver/gpio.h"
 
 #define LED_BUILTIN GPIO_NUM_2
-//#define PIN_BUZZER GPIO_NUM_27
+// #define PIN_BUZZER GPIO_NUM_27
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace
@@ -48,7 +48,7 @@ namespace
 void setup()
 {
   gpio_set_direction(LED_BUILTIN, GPIO_MODE_OUTPUT);
-  //gpio_set_direction(PIN_BUZZER, GPIO_MODE_OUTPUT);
+  // gpio_set_direction(PIN_BUZZER, GPIO_MODE_OUTPUT);
 
   size_t psram_size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
   if (psram_size > 0)
@@ -157,7 +157,7 @@ void loop()
   // int8_t person_score = output->data.uint8[kDrowsyIndex];
   // int8_t no_person_score = output->data.uint8[kNotDrowsyIndex];
 
-  // MicroPrintf("Size: %i", sizeof(output->data.f));
+  MicroPrintf("Size: %i", sizeof(output->data.f));
   // MicroPrintf("1: %f", output->data.f[0]);
   // MicroPrintf("2: %f", output->data.f[1]);
 
@@ -169,7 +169,7 @@ void loop()
   // float no_person_score_f =
   //     (no_person_score - output->params.zero_point) * output->params.scale;
 
-  MicroPrintf("Non Drowsy:%f, Drowsy:%f", noDrowsy, drowsy);
+  MicroPrintf("Non Drowsy:%f, Drowsy:%f, 3:%f , 4:%f", noDrowsy, drowsy, output->data.f[2], output->data.f[3]);
   if (drowsy > 0.4)
   {
     gpio_set_level(LED_BUILTIN, 1); // Turn the LED on
