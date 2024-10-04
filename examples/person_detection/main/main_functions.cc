@@ -157,19 +157,20 @@ void loop()
   // int8_t person_score = output->data.uint8[kDrowsyIndex];
   // int8_t no_person_score = output->data.uint8[kNotDrowsyIndex];
 
-  MicroPrintf("Size: %i", sizeof(output->data.f));
+ // MicroPrintf("Size: %i", sizeof(output->data.f));
   // MicroPrintf("1: %f", output->data.f[0]);
   // MicroPrintf("2: %f", output->data.f[1]);
 
   float noDrowsy = output->data.f[0];
-  float drowsy = output->data.f[1];
+  float noPerson = output->data.f[1];
+  float drowsy = output->data.f[2];
 
   // float person_score_f =
   //     (person_score - output->params.zero_point) * output->params.scale;
   // float no_person_score_f =
   //     (no_person_score - output->params.zero_point) * output->params.scale;
 
-  MicroPrintf("Non Drowsy:%f, Drowsy:%f, 3:%f , 4:%f", noDrowsy, drowsy, output->data.f[2], output->data.f[3]);
+  MicroPrintf("Non Drowsy:%f, No Person:%f Drowsy:%f", noDrowsy,noPerson, drowsy);
   if (drowsy > 0.4)
   {
     gpio_set_level(LED_BUILTIN, 1); // Turn the LED on
@@ -180,7 +181,7 @@ void loop()
   }
   // Respond to detection
   // RespondToDetection(person_score_f, no_person_score_f);
-  vTaskDelay(1000 / portTICK_PERIOD_MS); // to avoid watchdog trigger
+  vTaskDelay(2000 / portTICK_PERIOD_MS); // to avoid watchdog trigger
 }
 #endif
 
@@ -246,4 +247,8 @@ void run_inference(void *ptr)
   float no_person_score_f =
       (no_person_score - output->params.zero_point) * output->params.scale;
   RespondToDetection(person_score_f, no_person_score_f);
+}
+
+void action(void){
+  
 }
