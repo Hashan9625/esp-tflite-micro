@@ -17,8 +17,9 @@
 #include "esp_main.h"
 #include "driver/gpio.h"
 
-#define LED_BUILTIN GPIO_NUM_2
-// #define PIN_BUZZER GPIO_NUM_27
+#define PIN_BUZZER GPIO_NUM_2
+#define PIN_FLASH GPIO_NUM_4
+#define PIN_PUSH_BUTTON GPIO_NUM_14
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace
@@ -44,11 +45,16 @@ namespace
   static uint8_t *tensor_arena; //[kTensorArenaSize]; // Maybe we should move this to external
 } // namespace
 
+void action(void *pvParameter);
 // The name of this function is important for Arduino compatibility.
 void setup()
 {
-  gpio_set_direction(LED_BUILTIN, GPIO_MODE_OUTPUT);
-  // gpio_set_direction(PIN_BUZZER, GPIO_MODE_OUTPUT);
+  gpio_set_direction(PIN_BUZZER, GPIO_MODE_OUTPUT);
+  gpio_set_direction(PIN_FLASH, GPIO_MODE_OUTPUT);
+  // Set pin as input
+  gpio_set_direction(PIN_PUSH_BUTTON, GPIO_MODE_INPUT);
+  // Enable internal pull-up resistor
+  gpio_set_pull_mode(PIN_PUSH_BUTTON, GPIO_PULLUP_ONLY);
 
   size_t psram_size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
   if (psram_size > 0)
@@ -133,6 +139,10 @@ void setup()
   MicroPrintf("Dim 1 size %d", input->dims->data[0]);
   MicroPrintf("Dim 2 size %d", input->dims->data[1]);
   MicroPrintf("Input type %d", input->type);
+
+  gpio_set_level(PIN_FLASH, 1);
+  vTaskDelay(500 / portTICK_PERIOD_MS);
+  gpio_set_level(PIN_FLASH, 0);
 }
 
 #ifndef CLI_ONLY_INFERENCE
@@ -157,7 +167,7 @@ void loop()
   // int8_t person_score = output->data.uint8[kDrowsyIndex];
   // int8_t no_person_score = output->data.uint8[kNotDrowsyIndex];
 
- // MicroPrintf("Size: %i", sizeof(output->data.f));
+  // MicroPrintf("Size: %i", sizeof(output->data.f));
   // MicroPrintf("1: %f", output->data.f[0]);
   // MicroPrintf("2: %f", output->data.f[1]);
 
@@ -170,14 +180,23 @@ void loop()
   // float no_person_score_f =
   //     (no_person_score - output->params.zero_point) * output->params.scale;
 
-  MicroPrintf("Non Drowsy:%f, No Person:%f Drowsy:%f", noDrowsy,noPerson, drowsy);
+  MicroPrintf("Non Drowsy:%f, No Person:%f Drowsy:%f", noDrowsy, noPerson, drowsy);
   if (drowsy > 0.4)
   {
-    gpio_set_level(LED_BUILTIN, 1); // Turn the LED on
+    gpio_set_level(PIN_FLASH, 1); // Turn the LED on
+                               
+    xTaskCreate(
+        action,        // Function to be executed by the task
+        "Action Task", // Name of the task (used for debugging)
+        2048,          // Stack size in words
+        NULL,          // Parameter passed to the task (not used in this case)
+        1,             // Priority of the task
+        NULL           // Task handle (not used in this case)
+    );
   }
   else
   {
-    gpio_set_level(LED_BUILTIN, 0); // Turn the LED on
+    gpio_set_level(PIN_FLASH, 0); // Turn the LED on
   }
   // Respond to detection
   // RespondToDetection(person_score_f, no_person_score_f);
@@ -249,6 +268,17 @@ void run_inference(void *ptr)
   RespondToDetection(person_score_f, no_person_score_f);
 }
 
-void action(void){
-  
+void action(void *pvParameter)
+{
+
+  while (gpio_get_level(PIN_PUSH_BUTTON))
+  {
+    gpio_set_level(PIN_BUZZER, 1);
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    gpio_set_level(PIN_BUZZER, 0);
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+
+  vTaskDelete(NULL); // NULL indicates to delete the current task
 }
